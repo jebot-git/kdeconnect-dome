@@ -30,8 +30,8 @@ const Preferences = GObject.registerClass({
 
     _init() {
         super._init({
-            application_id: 'org.gnome.Shell.Extensions.GSConnect.Preferences',
-            resource_base_path: '/org/gnome/Shell/Extensions/GSConnect',
+            application_id: 'org.domed.Connect.Preferences',
+            resource_base_path: '/org/domed/Connect',
         });
 
         GLib.set_prgname('gsconnect-preferences');
@@ -82,8 +82,8 @@ const Preferences = GObject.registerClass({
                 paramArray[0] = parameter;
 
             this.get_dbus_connection().call(
-                'org.gnome.Shell.Extensions.GSConnect',
-                '/org/gnome/Shell/Extensions/GSConnect',
+                'org.domed.Connect',
+                '/org/domed/Connect',
                 'org.freedesktop.Application',
                 'ActivateAction',
                 GLib.Variant.new('(sava{sv})', [action_name, paramArray, {}]),

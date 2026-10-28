@@ -5,9 +5,9 @@
 [Desktop Entry]
 Type=Application
 Name=GSConnect Preferences
-Exec=gapplication action org.gnome.Shell.Extensions.GSConnect preferences
+Exec=gapplication action org.domed.Connect preferences
 Terminal=false
 NoDisplay=true
-Icon=org.gnome.Shell.Extensions.GSConnect
+Icon=org.domed.Connect
 Categories=Network;
 

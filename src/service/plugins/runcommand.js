@@ -11,7 +11,7 @@ import Plugin from '../plugin.js';
 
 export const Metadata = {
     label: _('Run Commands'),
-    id: 'org.gnome.Shell.Extensions.GSConnect.Plugin.RunCommand',
+    id: 'org.domed.Connect.Plugin.RunCommand',
     description: _('Run commands on your paired device or let the device run predefined commands on this PC'),
     incomingCapabilities: [
         'kdeconnect.runcommand',

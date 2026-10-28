@@ -1,0 +1,65 @@
+#!/usr/bin/python3
+"""Toolkit-free KDE Connect command-line client using the session D-Bus API."""
+import argparse
+from pathlib import Path
+import sys
+import gi
+gi.require_version('Gio', '2.0')
+from gi.repository import Gio, GLib
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('-l', '--list-devices', action='store_true')
+parser.add_argument('-a', '--list-available', action='store_true')
+parser.add_argument('--id-only', action='store_true')
+parser.add_argument('-d', '--device')
+parser.add_argument('-n', '--name')
+parser.add_argument('--pair', action='store_true')
+parser.add_argument('--unpair', action='store_true')
+parser.add_argument('--accept-pairing', action='store_true')
+parser.add_argument('--ping', action='store_true')
+parser.add_argument('--ping-msg', default='')
+parser.add_argument('--ring', action='store_true')
+parser.add_argument('--share')
+parser.add_argument('--share-text')
+parser.add_argument('--send-sms')
+parser.add_argument('--destination')
+parser.add_argument('--refresh', action='store_true')
+parser.add_argument('--set-name')
+parser.add_argument('--version', action='version', version='Dome Connect 74.domed1 (GIO, no Qt/GTK)')
+args = parser.parse_args()
+bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+root = '/modules/kdeconnect'
+def call(path, interface, method, signature='', *values):
+    parameters = GLib.Variant('(' + signature + ')', values) if signature else None
+    return bus.call_sync('org.kde.kdeconnect', path, interface, method, parameters,
+                         None, Gio.DBusCallFlags.NONE, 10000, None).unpack()
+def daemon(method, signature='', *values):
+    return call(root, 'org.kde.kdeconnect.daemon', method, signature, *values)
+try:
+    if args.refresh: daemon('forceOnNetworkChange')
+    if args.set_name: daemon('setAnnouncedName', 's', args.set_name)
+    ids = daemon('devices', 'bb', args.list_available, False)[0]
+    if args.list_devices or args.list_available or not any((args.device, args.name, args.refresh, args.set_name)):
+        for device in ids:
+            props = call(root + '/devices/' + device, 'org.freedesktop.DBus.Properties', 'GetAll', 's', 'org.kde.kdeconnect.device')[0]
+            if args.id_only: print(device)
+            else: print(f"- {props['name']}: {device} ({'paired' if props['isPaired'] else 'unpaired'}, {'reachable' if props['isReachable'] else 'unreachable'})")
+    selected = args.device or (daemon('deviceIdByName', 's', args.name)[0] if args.name else None)
+    if selected:
+        path = root + '/devices/' + selected
+        for requested, method in ((args.pair, 'requestPairing'), (args.accept_pairing, 'acceptPairing'), (args.unpair, 'unpair')):
+            if requested: call(path, 'org.kde.kdeconnect.device', method)
+        def plugin(name, method, signature='', *values):
+            return call(path + '/' + name, 'org.kde.kdeconnect.device.' + name, method, signature, *values)
+        if args.ping or args.ping_msg: plugin('ping', 'sendPing', 's', args.ping_msg)
+        if args.ring: plugin('findmyphone', 'ring')
+        if args.share:
+            uri = args.share if '://' in args.share else Path(args.share).resolve().as_uri()
+            plugin('share', 'shareUrl', 's', uri)
+        if args.share_text: plugin('share', 'shareText', 's', args.share_text)
+        if args.send_sms:
+            if not args.destination: parser.error('--send-sms requires --destination')
+            plugin('sms', 'sendSms', 'ss', args.destination, args.send_sms)
+except GLib.Error as error:
+    print('kdeconnect-cli: ' + error.message, file=sys.stderr)
+    raise SystemExit(1)

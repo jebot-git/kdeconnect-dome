@@ -1,0 +1,69 @@
+Dome Connect — native KDE Connect protocol backend
+=================================================
+
+This is a local fork of GSConnect 74, upstream commit
+61cc76b966f95a19d396fe0fc42a755fcb902bd4. Protocol, device and plugin code
+retain their upstream licenses and attribution. The GNOME extension sources
+are retained for reference; they are neither built nor installed by default.
+
+The installed service is a Gio.Application running under GJS. Its separate
+FLTK dialog helper follows DomeD appearance settings and supports native
+Wayland. No installed module imports Gtk or Gdk. The existing DomeD FLTK
+connected-device controls use a compatibility subset of org.kde.kdeconnect.
+This is a new implementation, not a build flag that removes Qt from KDE's
+original daemon. Qt is fundamental to that daemon's object and I/O model.
+
+Build as the regular user in the de-xr workspace:
+
+    meson setup build --prefix=/usr/local
+    meson compile -C build
+    meson test -C build --print-errorlogs
+    DESTDIR="$PWD/stage" meson install -C build --no-rebuild
+
+All C++ code uses CMAKE_BUILD_TYPE=Release. The FLTK build at
+/opt/fltk-vr/toolkit and shared appearance headers in ../flterm-xr/xr are
+required. The --no-rebuild install copies the user-built staging tree; do
+not compile with sudo. The RPM builder is tools/package-domed.py BUILD_DIR.
+It produces a system-integrated package with no Qt/GTK requirements.
+
+Runtime dependencies: GJS, GIO/GLib and its TLS backend, OpenSSL, Python Gio,
+wl-clipboard, pactl, pw-play, SSHFS/OpenSSH, and ydotool. Only the dialog helper
+links FLTK. D-Bus activation, autostart and command wrappers retain the old
+KDE Connect entry points. No desktop or display manager restart is required.
+
+Implemented paths include LAN discovery, pinned TLS, explicit pairing, ping,
+phone battery, file/text sharing, clipboard, find-phone, SFTP, media/system
+volume, notifications, SMS, remote commands and native input adapters. Tests
+cover protocol and plugin behavior; they do not establish complete UI or API
+parity with every KDE Connect feature. Bluetooth transport is not implemented;
+it was already disabled on the target system. Notification forwarding and
+remote keyboard behavior depend on compositor permissions. ydotool uses a
+private per-user socket and existing /dev/uinput access; no global device
+permissions are changed.
+
+Migration reads ~/.config/kdeconnect, copies the local identity to the private
+~/.config/kdeconnect-dome directory, imports trusted peer pins, and preserves
+original files. It never silently accepts pairing or replaces a changed peer
+certificate. Existing paired devices reconnect without re-pairing. Automatic
+migration runs once; subsequent unpairing remains authoritative.
+
+SFTP mounts use the local identity key and the paired Android TLS certificate's
+public key as an SSH host pin. Android deliberately uses the same keypair for
+its SSH server. Pins live in the private application configuration directory;
+the user's SSH agent, SSH config and global known_hosts are not modified.
+Password-only peers or peers with a distinct SSH host identity fail explicitly.
+Mounts are private under $XDG_RUNTIME_DIR/kdeconnect-dome/DEVICE/files and are
+unmounted on disconnect. Busy mounts are not forcibly detached.
+
+Validation:
+- tools/test-domed.py BUILD_DIR: upstream protocol/plugin suites, isolated bus
+  and settings, GTK imports removed from fixture initialization only.
+- tools/test-wire.py RUNTIME: independent Python TLS peer, explicit pairing,
+  certificate changes, CLI, Unicode text, real SSHFS against local OpenSSH,
+  rejection of an SSH host-key mismatch, unchanged global SSH trust, and
+  process mappings without Qt or GTK. Requires user-runnable sshd and /dev/fuse.
+- tools/test-dialogs.py RUNTIME: isolated Xvfb, real GJS-to-FLTK UTF-8 and cancel
+  responses. The production helper defaults to native Wayland through FLTK.
+
+Session authentication for installation is handled by sudo/askpass. Runtime
+certificates, user device data and credentials must never be checked into Git.

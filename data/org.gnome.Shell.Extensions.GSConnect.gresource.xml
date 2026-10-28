@@ -7,7 +7,7 @@ SPDX-License-Identifier: GPL-2.0-or-later
 -->
 
 <gresources>
-  <gresource prefix="/org/gnome/Shell/Extensions/GSConnect">
+  <gresource prefix="/org/domed/Connect">
     <!-- UI -->
     <file compressed="true">application.css</file>
     <file compressed="true" preprocess="xml-stripblanks">ui/connect-dialog.ui</file>
@@ -29,15 +29,15 @@ SPDX-License-Identifier: GPL-2.0-or-later
     <file compressed="true" preprocess="xml-stripblanks">ui/service-error-dialog.ui</file>
 
     <!-- DBus Service Files -->
-    <file compressed="true">org.gnome.Shell.Extensions.GSConnect.desktop</file>
-    <file compressed="true">org.gnome.Shell.Extensions.GSConnect.Preferences.desktop</file>
-    <file compressed="true">org.gnome.Shell.Extensions.GSConnect.service.in</file>
-    <file compressed="true" preprocess="xml-stripblanks">org.gnome.Shell.Extensions.GSConnect.xml</file>
-    <file compressed="true" preprocess="xml-stripblanks">org.gnome.Shell.Extensions.GSConnect.sdp.xml</file>
+    <file compressed="true">org.domed.Connect.desktop</file>
+    <file compressed="true">org.domed.Connect.Preferences.desktop</file>
+    <file compressed="true">org.domed.Connect.service.in</file>
+    <file compressed="true" preprocess="xml-stripblanks">org.domed.Connect.xml</file>
+    <file compressed="true" preprocess="xml-stripblanks">org.domed.Connect.sdp.xml</file>
 
     <!-- Application Icons -->
-    <file compressed="true" preprocess="xml-stripblanks">icons/org.gnome.Shell.Extensions.GSConnect.svg</file>
-    <file compressed="true" preprocess="xml-stripblanks">icons/org.gnome.Shell.Extensions.GSConnect-symbolic.svg</file>
+    <file compressed="true" preprocess="xml-stripblanks">icons/org.domed.Connect.svg</file>
+    <file compressed="true" preprocess="xml-stripblanks">icons/org.domed.Connect-symbolic.svg</file>
 
     <!-- Device Icons (Fallback) c/o GNOME -->
     <file compressed="true" preprocess="xml-stripblanks">icons/computer-symbolic.svg</file>

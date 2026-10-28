@@ -211,7 +211,7 @@ function setAvatarVisible(row, visible) {
  */
 const ConversationMessage = GObject.registerClass({
     GTypeName: 'GSConnectMessagingConversationMessage',
-    Template: 'resource:///org/gnome/Shell/Extensions/GSConnect/ui/messaging-conversation-message.ui',
+    Template: 'resource:///org/domed/Connect/ui/messaging-conversation-message.ui',
     Children: ['grid', 'avatar', 'sender-label', 'message-label'],
 }, class ConversationMessage extends Gtk.ListBoxRow {
     _init(contact, message) {
@@ -309,7 +309,7 @@ const Conversation = GObject.registerClass({
             ''
         ),
     },
-    Template: 'resource:///org/gnome/Shell/Extensions/GSConnect/ui/messaging-conversation.ui',
+    Template: 'resource:///org/domed/Connect/ui/messaging-conversation.ui',
     Children: [
         'entry', 'list', 'scrolled',
         'pending', 'pending-box',
@@ -724,7 +724,7 @@ const Conversation = GObject.registerClass({
  */
 const ConversationSummary = GObject.registerClass({
     GTypeName: 'GSConnectMessagingConversationSummary',
-    Template: 'resource:///org/gnome/Shell/Extensions/GSConnect/ui/messaging-conversation-summary.ui',
+    Template: 'resource:///org/domed/Connect/ui/messaging-conversation-summary.ui',
     Children: ['avatar', 'name-label', 'time-label', 'body-label'],
 }, class ConversationSummary extends Gtk.ListBoxRow {
     _init(contacts, message) {
@@ -829,7 +829,7 @@ export const Window = GObject.registerClass({
             ''
         ),
     },
-    Template: 'resource:///org/gnome/Shell/Extensions/GSConnect/ui/messaging-window.ui',
+    Template: 'resource:///org/domed/Connect/ui/messaging-window.ui',
     Children: [
         'headerbar', 'infobar',
         'thread-list', 'stack',

@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 import Gio from 'gi://Gio';
-import Gdk from 'gi://Gdk';
+import GLib from 'gi://GLib';
+import Config from '../../config.js';
+import Gdk from '../keysyms.js';
 
 const keyCodes = new Map([
     ['1', 2],
@@ -62,6 +64,19 @@ export default class Controller {
                 Gio.SubprocessFlags.STDERR_MERGE,
         });
         this._args = [];
+        this._pending = [];
+        this._socket = `${Config.RUNTIMEDIR}/input.sock`;
+        this._launcher.setenv('YDOTOOL_SOCKET', this._socket, true);
+        if (!GLib.file_test(this._socket, GLib.FileTest.EXISTS)) {
+            this._daemon = Gio.Subprocess.new(['ydotoold', `--socket-path=${this._socket}`, '--socket-perm=0600'],
+                Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE);
+        }
+        this._readyTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 30, () => {
+            if (!GLib.file_test(this._socket, GLib.FileTest.EXISTS)) return GLib.SOURCE_CONTINUE;
+            for (const args of this._pending.splice(0)) this._launcher.spawnv(args);
+            this._readyTimer = 0;
+            return GLib.SOURCE_REMOVE;
+        });
         this.buttonMap = new Map([
             [Gdk.BUTTON_PRIMARY, '0'],
             [Gdk.BUTTON_MIDDLE, '2'],
@@ -76,7 +91,8 @@ export default class Controller {
     set args(opts) {
         this._args = ['ydotool'].concat(opts);
         try {
-            this._launcher.spawnv(this._args);
+            if (GLib.file_test(this._socket, GLib.FileTest.EXISTS)) this._launcher.spawnv(this._args);
+            else if (this._pending.length < 1000) this._pending.push(this._args);
         } catch (e) {
             debug(e, this._args);
         }
@@ -128,7 +144,7 @@ export default class Controller {
                 this._launcher.spawnv(['wtype', input]);
             } catch (e) {
                 debug(e);
-                this.arg = ['type', '--', input];
+                this.args = ['type', '--', input];
             }
         } else {
             if (typeof input === 'number') {
@@ -156,5 +172,8 @@ export default class Controller {
 
     destroy() {
         this._args = [];
+        if (this._readyTimer) GLib.source_remove(this._readyTimer);
+        this._daemon?.force_exit();
+        if (this._daemon) GLib.unlink(this._socket);
     }
 }

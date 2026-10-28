@@ -89,7 +89,7 @@ export const InputDialog = GObject.registerClass({
             GObject.Object
         ),
     },
-    Template: 'resource:///org/gnome/Shell/Extensions/GSConnect/ui/mousepad-input-dialog.ui',
+    Template: 'resource:///org/domed/Connect/ui/mousepad-input-dialog.ui',
     Children: [
         'infobar', 'infobar-label',
         'touchpad-eventbox', 'mouse-left-button', 'mouse-middle-button', 'mouse-right-button',

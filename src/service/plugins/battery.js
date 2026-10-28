@@ -14,7 +14,7 @@ import Plugin from '../plugin.js';
 export const Metadata = {
     label: _('Battery'),
     description: _('Exchange battery information'),
-    id: 'org.gnome.Shell.Extensions.GSConnect.Plugin.Battery',
+    id: 'org.domed.Connect.Plugin.Battery',
     incomingCapabilities: [
         'kdeconnect.battery',
         'kdeconnect.battery.request',

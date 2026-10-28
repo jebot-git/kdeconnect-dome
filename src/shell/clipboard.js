@@ -14,11 +14,11 @@ import * as DBus from '../service/utils/dbus.js';
 /*
  * DBus Interface Info
  */
-const DBUS_NAME = 'org.gnome.Shell.Extensions.GSConnect.Clipboard';
-const DBUS_PATH = '/org/gnome/Shell/Extensions/GSConnect/Clipboard';
+const DBUS_NAME = 'org.domed.Connect.Clipboard';
+const DBUS_PATH = '/org/domed/Connect/Clipboard';
 const DBUS_NODE = Gio.DBusNodeInfo.new_for_xml(`
 <node>
-  <interface name="org.gnome.Shell.Extensions.GSConnect.Clipboard">
+  <interface name="org.domed.Connect.Clipboard">
     <!-- Methods -->
     <method name="GetMimetypes">
       <arg direction="out" type="as" name="mimetypes"/>
@@ -299,7 +299,7 @@ export function watchService() {
 
     _portalId = Gio.bus_watch_name(
         Gio.BusType.SESSION,
-        'org.gnome.Shell.Extensions.GSConnect',
+        'org.domed.Connect',
         Gio.BusNameWatcherFlags.NONE,
         () => {
             if (_portal === null)

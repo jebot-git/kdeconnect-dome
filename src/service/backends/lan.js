@@ -716,6 +716,10 @@ export const Channel = GObject.registerClass({
         await connection.handshake_async(GLib.PRIORITY_DEFAULT,
             this.cancellable);
 
+        if (!connection.peer_certificate ||
+            connection.peer_certificate.common_name !== this.identity.body.deviceId)
+            throw new Error('The peer certificate does not match the announced device ID');
+
         // Get a settings object for the device
         let settings;
 
@@ -725,10 +729,10 @@ export const Channel = GObject.registerClass({
             const id = this.identity.body.deviceId;
             settings = new Gio.Settings({
                 settings_schema: Config.GSCHEMA.lookup(
-                    'org.gnome.Shell.Extensions.GSConnect.Device',
+                    'org.domed.Connect.Device',
                     true
                 ),
-                path: `/org/gnome/shell/extensions/gsconnect/device/${id}/`,
+                path: `/org/domed/connect/device/${id}/`,
             });
         }
 
@@ -759,13 +763,8 @@ export const Channel = GObject.registerClass({
              * nuking the Android app data or copying settings between machines.
              */
             if (verified === false) {
-                if (this.device) {
-                    this.device.unpair();
-                } else {
-                    settings.reset('paired');
-                    settings.reset('certificate-pem');
-                }
-
+                // An unauthenticated peer must never erase an existing trust
+                // decision. Re-pairing requires an explicit local unpair.
                 const name = this.identity.body.deviceName;
                 throw new Error(`${name}: Authentication Failure`);
             }

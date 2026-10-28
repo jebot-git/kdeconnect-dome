@@ -7,7 +7,7 @@ SPDX-License-Identifier: CC0-1.0
 -->
 
 <component type="desktop-application">
-  <id>org.gnome.Shell.Extensions.GSConnect</id>
+  <id>org.domed.Connect</id>
 
   <name>GSConnect</name>
   <summary>KDE Connect implementation for GNOME</summary>
@@ -24,11 +24,11 @@ SPDX-License-Identifier: CC0-1.0
       <name>GSConnect Team</name>
   </developer>
 
-  <launchable type="desktop-id">org.gnome.Shell.Extensions.GSConnect.desktop</launchable>
-  <launchable type="desktop-id">org.gnome.Shell.Extensions.GSConnect.Preferences.desktop</launchable>
+  <launchable type="desktop-id">org.domed.Connect.desktop</launchable>
+  <launchable type="desktop-id">org.domed.Connect.Preferences.desktop</launchable>
 
   <provides>
-    <dbus type="session">org.gnome.Shell.Extensions.GSConnect</dbus>
+    <dbus type="session">org.domed.Connect</dbus>
   </provides>
 
   <requires>

@@ -5,10 +5,10 @@
 [Desktop Entry]
 Type=Application
 Name=GSConnect
-Exec=gapplication launch org.gnome.Shell.Extensions.GSConnect %U
+Exec=gapplication launch org.domed.Connect %U
 Terminal=false
 NoDisplay=true
-Icon=org.gnome.Shell.Extensions.GSConnect
+Icon=org.domed.Connect
 Categories=Network;
 MimeType=x-scheme-handler/sms;x-scheme-handler/tel;
 DBusActivatable=true

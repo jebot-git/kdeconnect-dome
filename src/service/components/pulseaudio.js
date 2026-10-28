@@ -1,280 +1,80 @@
-// SPDX-FileCopyrightText: GSConnect Developers https://github.com/GSConnect
-//
 // SPDX-License-Identifier: GPL-2.0-or-later
-
-import GIRepository from 'gi://GIRepository';
+// PipeWire/PulseAudio control through pactl; no GNOME Shell or GUI libraries.
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
-
-import Config from '../../config.js';
-
-const Tweener = imports.tweener.tweener;
-
-
-let Gvc = null;
-try {
-    // Add gnome-shell's typelib dir to the search path
-    const typelibDir = GLib.build_filenamev([Config.GNOME_SHELL_LIBDIR, 'gnome-shell']);
-
-    if (GIRepository.Repository.hasOwnProperty('prepend_search_path')) {
-        // GNOME <= 48 / GIRepository 2.0
-        GIRepository.Repository.prepend_search_path(typelibDir);
-        GIRepository.Repository.prepend_library_path(typelibDir);
-    } else {
-        // GNOME 49+ / GIRepository 3.0
-        const repo = GIRepository.Repository.dup_default();
-        repo.prepend_search_path(typelibDir);
-        repo.prepend_library_path(typelibDir);
-    }
-
-    Gvc = (await import('gi://Gvc')).default;
-} catch {}
-
-
-/**
- * Extend Gvc.MixerStream with a property for returning a user-visible name
- */
-if (Gvc) {
-    Object.defineProperty(Gvc.MixerStream.prototype, 'display_name', {
-        get: function () {
-            try {
-                if (!this.get_ports().length)
-                    return this.description;
-
-                return `${this.get_port().human_port} (${this.description})`;
-            } catch {
-                return this.description;
-            }
-        },
-    });
+function command(args) {
+    const p = Gio.Subprocess.new(['pactl', ...args], Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE);
+    const [, output] = p.communicate_utf8(null, null);
+    if (!p.get_successful()) throw new Error(`pactl ${args[0]} failed`);
+    return output.trim();
 }
-
-
-/**
- * A convenience wrapper for Gvc.MixerStream
- */
 class Stream {
-    constructor(mixer, stream) {
-        this._mixer = mixer;
-        this._stream = stream;
-
-        this._max = mixer.get_vol_max_norm();
+    constructor(raw) { this.update(raw); }
+    update(raw) {
+        this.raw = raw; this.name = raw.name; this.id = raw.index;
+        this.display_name = raw.description || raw.name;
+        this.is_muted = raw.mute;
+        const values = Object.values(raw.volume || {});
+        this.volume = values.length ? Math.round(values.reduce((sum, v) => sum + v.value, 0) / values.length) : 0;
     }
-
-    get muted() {
-        return this._stream.is_muted;
-    }
-
-    set muted(bool) {
-        this._stream.change_is_muted(bool);
-    }
-
-    // Volume is a double in the range 0-1
-    get volume() {
-        return Math.floor(100 * this._stream.volume / this._max) / 100;
-    }
-
-    set volume(num) {
-        this._stream.volume = Math.floor(num * this._max);
-        this._stream.push_volume();
-    }
-
-    /**
-     * Gradually raise or lower the stream volume to {@link value}
-     *
-     * @param {number} value - A number in the range 0-1
-     * @param {number} [duration] - Duration to fade in seconds
-     */
-    fade(value, duration = 1) {
-        Tweener.removeTweens(this);
-
-        if (this._stream.volume > value) {
-            this._mixer.fading = true;
-
-            Tweener.addTween(this, {
-                volume: value,
-                time: duration,
-                transition: 'easeOutCubic',
-                onComplete: () => {
-                    this._mixer.fading = false;
-                },
-            });
-        } else if (this._stream.volume < value) {
-            this._mixer.fading = true;
-
-            Tweener.addTween(this, {
-                volume: value,
-                time: duration,
-                transition: 'easeInCubic',
-                onComplete: () => {
-                    this._mixer.fading = false;
-                },
-            });
-        }
-    }
+    change_is_muted(value) { command(['set-sink-mute', this.name, value ? '1' : '0']); }
+    push_volume() { command(['set-sink-volume', this.name, String(Math.max(0, Math.round(this.volume)))]); }
 }
-
-
-/**
- * A subclass of Gvc.MixerControl with convenience functions for controlling the
- * default input/output volumes.
- *
- * The Mixer class uses GNOME Shell's Gvc library to control the system volume
- * and offers a few convenience functions.
- */
-const Mixer = !Gvc ? null : GObject.registerClass({
-    GTypeName: 'GSConnectAudioMixer',
-}, class Mixer extends Gvc.MixerControl {
-    _init(params) {
-        super._init({name: 'GSConnect'});
-
-        this._previousVolume = undefined;
-        this._volumeMuted = false;
-        this._microphoneMuted = false;
-
-        this.open();
+const Mixer = GObject.registerClass({
+    GTypeName: 'DomeConnectMixer',
+    Signals: {'stream-changed': {param_types: [GObject.TYPE_UINT]},
+        'output-added': {param_types: [GObject.TYPE_UINT]},
+        'output-removed': {param_types: [GObject.TYPE_UINT]}},
+}, class Mixer extends GObject.Object {
+    _init() {
+        super._init(); this._sinks = new Map(); this.fading = false;
+        this._refresh();
+        this._timer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 2, () => {
+            try { this._refresh(); } catch (error) { debug(error); }
+            return GLib.SOURCE_CONTINUE;
+        });
     }
-
-    get fading() {
-        if (this._fading === undefined)
-            this._fading = false;
-
-        return this._fading;
-    }
-
-    set fading(bool) {
-        if (this.fading === bool)
-            return;
-
-        this._fading = bool;
-
-        if (this.fading)
-            this.emit('stream-changed', this._output._stream.id);
-    }
-
-    get input() {
-        if (this._input === undefined)
-            this.vfunc_default_source_changed();
-
-        return this._input;
-    }
-
-    get output() {
-        if (this._output === undefined)
-            this.vfunc_default_sink_changed();
-
-        return this._output;
-    }
-
-    vfunc_default_sink_changed(id) {
-        try {
-            const sink = this.get_default_sink();
-            this._output = (sink) ? new Stream(this, sink) : null;
-        } catch (e) {
-            logError(e);
-        }
-    }
-
-    vfunc_default_source_changed(id) {
-        try {
-            const source = this.get_default_source();
-            this._input = (source) ? new Stream(this, source) : null;
-        } catch (e) {
-            logError(e);
-        }
-    }
-
-    vfunc_state_changed(new_state) {
-        try {
-            if (new_state === Gvc.MixerControlState.READY) {
-                this.vfunc_default_sink_changed(null);
-                this.vfunc_default_source_changed(null);
+    _refresh() {
+        const current = new Set();
+        for (const raw of JSON.parse(command(['--format=json', 'list', 'sinks']))) {
+            current.add(raw.index);
+            const previous = this._sinks.get(raw.index);
+            if (previous) {
+                const changed = JSON.stringify(previous.raw) !== JSON.stringify(raw);
+                previous.update(raw);
+                if (changed) this.emit('stream-changed', raw.index);
+            } else {
+                this._sinks.set(raw.index, new Stream(raw)); this.emit('output-added', raw.index);
             }
-        } catch (e) {
-            logError(e);
+        }
+        for (const id of this._sinks.keys()) {
+            if (!current.has(id)) { this._sinks.delete(id); this.emit('output-removed', id); }
         }
     }
-
-    /**
-     * Store the current output volume then lower it to %15
-     *
-     * @param {number} duration - Duration in seconds to fade
-     */
-    lowerVolume(duration = 1) {
-        try {
-            if (this.output && this.output.volume > 0.15) {
-                this._previousVolume = Number(this.output.volume);
-                this.output.fade(0.15, duration);
-            }
-        } catch (e) {
-            logError(e);
-        }
+    get_sinks() { return [...this._sinks.values()]; }
+    lookup_stream_id(id) { return this._sinks.get(id); }
+    get_vol_max_norm() { return 65536; }
+    _remember() {
+        if (!this._saved) this._saved = this.get_sinks().map(s => ({name: s.name, volume: s.volume, mute: s.is_muted}));
     }
-
-    /**
-     * Mute the output volume (speakers)
-     */
-    muteVolume() {
-        try {
-            if (!this.output || this.output.muted)
-                return;
-
-            this.output.muted = true;
-            this._volumeMuted = true;
-        } catch (e) {
-            logError(e);
-        }
-    }
-
-    /**
-     * Mute the input volume (microphone)
-     */
+    lowerVolume() { this._remember(); command(['set-sink-volume', '@DEFAULT_SINK@', '15%']); }
+    muteVolume() { this._remember(); command(['set-sink-mute', '@DEFAULT_SINK@', '1']); }
     muteMicrophone() {
-        try {
-            if (!this.input || this.input.muted)
-                return;
-
-            this.input.muted = true;
-            this._microphoneMuted = true;
-        } catch (e) {
-            logError(e);
-        }
+        if (this._sourceMute === undefined) this._sourceMute = command(['get-source-mute', '@DEFAULT_SOURCE@']).endsWith('yes');
+        command(['set-source-mute', '@DEFAULT_SOURCE@', '1']);
     }
-
-    /**
-     * Restore all mixer levels to their previous state
-     */
     restore() {
-        try {
-            // If we muted the microphone, unmute it before restoring the volume
-            if (this._microphoneMuted) {
-                this.input.muted = false;
-                this._microphoneMuted = false;
-            }
-
-            // If we muted the volume, unmute it before restoring the volume
-            if (this._volumeMuted) {
-                this.output.muted = false;
-                this._volumeMuted = false;
-            }
-
-            // If a previous volume is defined, raise it back up to that level
-            if (this._previousVolume !== undefined) {
-                this.output.fade(this._previousVolume);
-                this._previousVolume = undefined;
-            }
-        } catch (e) {
-            logError(e);
+        for (const s of this._saved || []) {
+            command(['set-sink-volume', s.name, String(s.volume)]);
+            command(['set-sink-mute', s.name, s.mute ? '1' : '0']);
+        }
+        this._saved = undefined;
+        if (this._sourceMute !== undefined) {
+            command(['set-source-mute', '@DEFAULT_SOURCE@', this._sourceMute ? '1' : '0']);
+            this._sourceMute = undefined;
         }
     }
-
-    destroy() {
-        this.close();
-    }
+    destroy() { if (this._timer) GLib.source_remove(this._timer); }
 });
-
-
-/**
- * The service class for this component
- */
 export default Mixer;

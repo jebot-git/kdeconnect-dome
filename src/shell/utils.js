@@ -32,10 +32,10 @@ export function getIcon(name) {
         });
 
         // Preload our fallbacks
-        const iconPath = 'resource://org/gnome/Shell/Extensions/GSConnect/icons';
+        const iconPath = 'resource://org/domed/Connect/icons';
         const iconNames = [
-            'org.gnome.Shell.Extensions.GSConnect',
-            'org.gnome.Shell.Extensions.GSConnect-symbolic',
+            'org.domed.Connect',
+            'org.domed.Connect-symbolic',
             'computer-symbolic',
             'laptop-symbolic',
             'smartphone-symbolic',

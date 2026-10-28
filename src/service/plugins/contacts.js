@@ -27,7 +27,7 @@ try {
 export const Metadata = {
     label: _('Contacts'),
     description: _('Access contacts of the paired device'),
-    id: 'org.gnome.Shell.Extensions.GSConnect.Plugin.Contacts',
+    id: 'org.domed.Connect.Plugin.Contacts',
     incomingCapabilities: [
         'kdeconnect.contacts.response_uids_timestamps',
         'kdeconnect.contacts.response_vcards',

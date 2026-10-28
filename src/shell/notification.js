@@ -18,8 +18,8 @@ const {NotificationMessage} = HAS_MESSAGELIST_NOTIFICATIONMESSAGE
     ? await import('resource:///org/gnome/shell/ui/messageList.js')  // GNOME 48+
     : await import('resource:///org/gnome/shell/ui/calendar.js');    // GNOME 46/47
 
-const APP_ID = 'org.gnome.Shell.Extensions.GSConnect';
-const APP_PATH = '/org/gnome/Shell/Extensions/GSConnect';
+const APP_ID = 'org.domed.Connect';
+const APP_PATH = '/org/domed/Connect';
 
 
 // deviceId Pattern (<device-id>|<remote-id>)

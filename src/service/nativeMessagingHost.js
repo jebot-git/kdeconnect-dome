@@ -28,7 +28,7 @@ const NativeMessagingHost = GObject.registerClass({
 
     _init() {
         super._init({
-            application_id: 'org.gnome.Shell.Extensions.GSConnect.NativeMessagingHost',
+            application_id: 'org.domed.Connect.NativeMessagingHost',
             flags: Gio.ApplicationFlags.NON_UNIQUE,
         });
     }
@@ -68,8 +68,8 @@ const NativeMessagingHost = GObject.registerClass({
             this._manager = Gio.DBusObjectManagerClient.new_for_bus_sync(
                 Gio.BusType.SESSION,
                 Gio.DBusObjectManagerClientFlags.DO_NOT_AUTO_START,
-                'org.gnome.Shell.Extensions.GSConnect',
-                '/org/gnome/Shell/Extensions/GSConnect',
+                'org.domed.Connect',
+                '/org/domed/Connect',
                 null,
                 null
             );

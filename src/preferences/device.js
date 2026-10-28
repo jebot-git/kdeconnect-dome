@@ -75,7 +75,7 @@ export function titleSortFunc(row1, row2) {
  */
 const SectionRow = GObject.registerClass({
     GTypeName: 'GSConnectPreferencesSectionRow',
-    Template: 'resource:///org/gnome/Shell/Extensions/GSConnect/ui/preferences-section-row.ui',
+    Template: 'resource:///org/domed/Connect/ui/preferences-section-row.ui',
     Children: ['icon-image', 'title-label', 'subtitle-label'],
     Properties: {
         'gicon': GObject.ParamSpec.object(
@@ -205,7 +205,7 @@ const SectionRow = GObject.registerClass({
  */
 const CommandEditor = GObject.registerClass({
     GTypeName: 'GSConnectPreferencesCommandEditor',
-    Template: 'resource:///org/gnome/Shell/Extensions/GSConnect/ui/preferences-command-editor.ui',
+    Template: 'resource:///org/domed/Connect/ui/preferences-command-editor.ui',
     Children: [
         'cancel-button', 'save-button',
         'command-entry', 'name-entry', 'command-chooser',
@@ -259,7 +259,7 @@ export const Panel = GObject.registerClass({
             GObject.Object.$gtype
         ),
     },
-    Template: 'resource:///org/gnome/Shell/Extensions/GSConnect/ui/preferences-device-panel.ui',
+    Template: 'resource:///org/domed/Connect/ui/preferences-device-panel.ui',
     Children: [
         'sidebar', 'stack', 'infobar',
 
@@ -307,10 +307,10 @@ export const Panel = GObject.registerClass({
         // GSettings
         this.settings = new Gio.Settings({
             settings_schema: Config.GSCHEMA.lookup(
-                'org.gnome.Shell.Extensions.GSConnect.Device',
+                'org.domed.Connect.Device',
                 true
             ),
-            path: `/org/gnome/shell/extensions/gsconnect/device/${device.id}/`,
+            path: `/org/domed/connect/device/${device.id}/`,
         });
 
         // Infobar
@@ -865,7 +865,7 @@ export const Panel = GObject.registerClass({
         }
 
         // Scan applications that statically declare to show notifications
-        const ignoreId = 'org.gnome.Shell.Extensions.GSConnect.desktop';
+        const ignoreId = 'org.domed.Connect.desktop';
 
         for (const appInfo of Gio.AppInfo.get_all()) {
             if (appInfo.get_id() === ignoreId)

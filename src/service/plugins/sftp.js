@@ -1,19 +1,14 @@
-// SPDX-FileCopyrightText: GSConnect Developers https://github.com/GSConnect
-//
 // SPDX-License-Identifier: GPL-2.0-or-later
-
+// SSHFS uses the paired TLS identity for both host verification and client auth.
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
-
 import Config from '../../config.js';
-import * as Core from '../core.js';
 import Plugin from '../plugin.js';
-
 
 export const Metadata = {
     label: _('SFTP'),
-    id: 'org.gnome.Shell.Extensions.GSConnect.Plugin.SFTP',
+    id: 'org.domed.Connect.Plugin.SFTP',
     description: _('Browse the paired device filesystem'),
     incomingCapabilities: ['kdeconnect.sftp'],
     outgoingCapabilities: ['kdeconnect.sftp.request'],
@@ -37,452 +32,135 @@ export const Metadata = {
     },
 };
 
+async function capture(args, input = null) {
+    const process = Gio.Subprocess.new(args, Gio.SubprocessFlags.STDIN_PIPE |
+        Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
+    const [output, error] = await process.communicate_utf8_async(input, null);
+    if (!process.get_successful()) throw new Error(`${args[0]} failed: ${error.trim()}`);
+    return output.trim();
+}
 
-const MAX_MOUNT_DIRS = 12;
+export async function sshHostKey(certificate) {
+    const publicKey = await capture([Config.OPENSSL_PATH, 'x509', '-pubkey', '-noout'], certificate);
+    return capture([Config.SSHKEYGEN_PATH, '-i', '-m', 'PKCS8', '-f', '/dev/stdin'], publicKey + '\n');
+}
 
+function isMounted(path) {
+    try {
+        const data = new TextDecoder().decode(GLib.file_get_contents('/proc/self/mountinfo')[1]);
+        return data.split('\n').some(line => {
+            const mount = line.split(' ')[4]?.replace(/\\([0-7]{3})/g, (_, n) => String.fromCharCode(parseInt(n, 8)));
+            return mount === path;
+        });
+    } catch { return false; }
+}
 
-/**
- * SFTP Plugin
- * https://github.com/KDE/kdeconnect-kde/tree/master/plugins/sftp
- * https://github.com/KDE/kdeconnect-android/tree/master/src/org/kde/kdeconnect/Plugins/SftpPlugin
- */
-const SFTPPlugin = GObject.registerClass({
-    GTypeName: 'GSConnectSFTPPlugin',
-}, class SFTPPlugin extends Plugin {
-
+const SFTPPlugin = GObject.registerClass({GTypeName: 'DomeConnectSFTPPlugin'}, class SFTPPlugin extends Plugin {
     _init(device) {
         super._init(device, 'sftp');
-
-        this._gmount = null;
+        this._point = `${Config.RUNTIMEDIR}/${device.id}/files`;
         this._mounting = false;
-
-        // A reusable launcher for ssh processes
-        this._launcher = new Gio.SubprocessLauncher({
-            flags: (Gio.SubprocessFlags.STDOUT_PIPE |
-                    Gio.SubprocessFlags.STDERR_MERGE),
-        });
-
-        // Watch the volume monitor
-        this._volumeMonitor = Gio.VolumeMonitor.get();
-
-        this._mountAddedId = this._volumeMonitor.connect(
-            'mount-added',
-            this._onMountAdded.bind(this)
-        );
-
-        this._mountRemovedId = this._volumeMonitor.connect(
-            'mount-removed',
-            this._onMountRemoved.bind(this)
-        );
+        this._mounted = false;
+        this._directories = {};
+        this._error = '';
     }
-
-    get gmount() {
-        if (this._gmount === null && this.device.connected) {
-            const host = this.device.channel.host;
-
-            const regex = new RegExp(
-                `sftp://(${host}):(1739|17[4-5][0-9]|176[0-4])`
-            );
-
-            for (const mount of this._volumeMonitor.get_mounts()) {
-                const uri = mount.get_root().get_uri();
-
-                if (regex.test(uri)) {
-                    this._gmount = mount;
-                    this._addSubmenu(mount);
-                    this._addSymlink(mount);
-
-                    break;
-                }
-            }
-        }
-
-        return this._gmount;
-    }
-
+    get mounted() { return this._mounted && isMounted(this._point); }
+    get mount_point() { return this._point; }
+    get directories() { return this._directories; }
+    get mount_error() { return this._error; }
     connected() {
         super.connected();
-
-        // Only enable for Lan connections
-        if (this.device.channel.constructor.name === 'LanChannel') { // FIXME: Circular import workaround
-            if (this.settings.get_boolean('automount'))
-                this.mount();
-        } else {
-            this.device.lookup_action('mount').enabled = false;
-            this.device.lookup_action('unmount').enabled = false;
-        }
+        if (this.device.connection_type === 'lan' && this.settings.get_boolean('automount')) this.mount();
     }
-
+    disconnected() { this.unmount(); super.disconnected(); }
     handlePacket(packet) {
-        switch (packet.type) {
-            case 'kdeconnect.sftp':
-                if (packet.body.hasOwnProperty('errorMessage'))
-                    this._handleError(packet);
-                else
-                    this._handleMount(packet);
-
-                break;
-        }
+        if (packet.type !== 'kdeconnect.sftp') return;
+        if (packet.body.errorMessage) {
+            this._error = packet.body.errorMessage;
+            this.device.showNotification({title: this.device.name, body: this._error});
+        } else this._handleMount(packet).catch(error => { this._error = error.message; logError(error); });
     }
-
-    _onMountAdded(monitor, mount) {
-        if (this._gmount !== null || !this.device.connected)
-            return;
-
-        const host = this.device.channel.host;
-        const regex = new RegExp(`sftp://(${host}):(1739|17[4-5][0-9]|176[0-4])`);
-        const uri = mount.get_root().get_uri();
-
-        if (!regex.test(uri))
-            return;
-
-        this._gmount = mount;
-        this._addSubmenu(mount);
-        this._addSymlink(mount);
-    }
-
-    _onMountRemoved(monitor, mount) {
-        if (this.gmount !== mount)
-            return;
-
-        this._gmount = null;
-        this._removeSubmenu();
-    }
-
-    async _listDirectories(mount) {
-        const file = mount.get_root();
-
-        const iter = await file.enumerate_children_async(
-            Gio.FILE_ATTRIBUTE_STANDARD_NAME,
-            Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS,
-            GLib.PRIORITY_DEFAULT,
-            this.cancellable);
-
-        const infos = await iter.next_files_async(MAX_MOUNT_DIRS,
-            GLib.PRIORITY_DEFAULT, this.cancellable);
-        iter.close_async(GLib.PRIORITY_DEFAULT, null, null);
-
-        const directories = {};
-
-        for (const info of infos) {
-            const name = info.get_name();
-            directories[name] = `${file.get_uri()}${name}/`;
-        }
-
-        return directories;
-    }
-
-    _onAskQuestion(op, message, choices) {
-        op.reply(Gio.MountOperationResult.HANDLED);
-    }
-
-    _onAskPassword(op, message, user, domain, flags) {
-        op.reply(Gio.MountOperationResult.HANDLED);
-    }
-
-    /**
-     * Handle an error reported by the remote device.
-     *
-     * @param {Core.Packet} packet - a `kdeconnect.sftp`
-     */
-    _handleError(packet) {
-        this.device.showNotification({
-            id: 'sftp-error',
-            title: _('%s reported an error').format(this.device.name),
-            body: packet.body.errorMessage,
-            icon: new Gio.ThemedIcon({name: 'dialog-error-symbolic'}),
-            priority: Gio.NotificationPriority.HIGH,
-        });
-    }
-
-    /**
-     * Mount the remote device using the provided information.
-     *
-     * @param {Core.Packet} packet - a `kdeconnect.sftp`
-     */
     async _handleMount(packet) {
+        if (this.mounted || this._mounting) return;
+        this._mounting = true;
+        this._error = '';
         try {
-            // Already mounted or mounting
-            if (this.gmount !== null || this._mounting)
-                return;
-
-            this._mounting = true;
-
-            // Ensure the private key is in the keyring
-            await this._addPrivateKey();
-
-            // Create a new mount operation
-            const op = new Gio.MountOperation({
-                username: packet.body.user || null,
-                password: packet.body.password || null,
-                password_save: Gio.PasswordSave.NEVER,
-            });
-
-            op.connect('ask-question', this._onAskQuestion);
-            op.connect('ask-password', this._onAskPassword);
-
-            // This is the actual call to mount the device
+            if (!this.device.paired || !this.device.connected) throw new Error('The SFTP device is not paired and connected');
+            const port = Number(packet.body.port);
+            if (!Number.isInteger(port) || port < 1739 || port > 1764) throw new Error('Invalid KDE Connect SFTP port');
+            const user = packet.body.user || 'kdeconnect';
+            if (!/^[a-zA-Z0-9_.-]+$/.test(user)) throw new Error('Invalid SFTP username');
             const host = this.device.channel.host;
-            const uri = `sftp://${host}:${packet.body.port}/`;
-            const file = Gio.File.new_for_uri(uri);
-
-            await file.mount_enclosing_volume(GLib.PRIORITY_DEFAULT, op,
-                this.cancellable);
-        } catch (e) {
-            // Special case when the GMount didn't unmount properly but is still
-            // on the same port and can be reused.
-            if (e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.ALREADY_MOUNTED))
-                return;
-
-            // There's a good chance this is a host key verification error;
-            // regardless we'll remove the key for security.
-            this._removeHostKey(this.device.channel.host);
-            logError(e, this.device.name);
-        } finally {
-            this._mounting = false;
-        }
-    }
-
-    /**
-     * Add GSConnect's private key identity to the authentication agent so our
-     * identity can be verified by Android during private key authentication.
-     *
-     * @returns {Promise} A promise for the operation
-     */
-    async _addPrivateKey() {
-        const ssh_add = this._launcher.spawnv([
-            Config.SSHADD_PATH,
-            GLib.build_filenamev([Config.CONFIGDIR, 'private.pem']),
-        ]);
-
-        const [stdout] = await ssh_add.communicate_utf8_async(null,
-            this.cancellable);
-
-        if (ssh_add.get_exit_status() !== 0)
-            debug(stdout.trim(), this.device.name);
-    }
-
-    /**
-     * Remove all host keys from ~/.ssh/known_hosts for {@link host} in the
-     * port range used by KDE Connect (1739-1764).
-     *
-     * @param {string} host - A hostname or IP address
-     */
-    async _removeHostKey(host) {
-        for (let port = 1739; port <= 1764; port++) {
-            try {
-                const ssh_keygen = this._launcher.spawnv([
-                    Config.SSHKEYGEN_PATH,
-                    '-R',
-                    `[${host}]:${port}`,
-                ]);
-
-                const [stdout] = await ssh_keygen.communicate_utf8_async(null,
-                    this.cancellable);
-
-                const status = ssh_keygen.get_exit_status();
-
-                if (status !== 0) {
-                    throw new Gio.IOErrorEnum({
-                        code: Gio.io_error_from_errno(status),
-                        message: `${GLib.strerror(status)}\n${stdout}`.trim(),
-                    });
-                }
-            } catch (e) {
-                logError(e, this.device.name);
+            const server = host.includes(':') ? `[${host}]` : host;
+            const certificate = this.device.settings.get_string('certificate-pem');
+            if (!certificate) throw new Error('SFTP requires an existing certificate pin');
+            // Android's SSH server deliberately reuses its TLS keypair. Pin that
+            // same public key instead of accepting or deleting global SSH pins.
+            const key = await sshHostKey(certificate);
+            if (!this.device.paired || !this.device.connected ||
+                this.device.settings.get_string('certificate-pem') !== certificate)
+                throw new Error('The SFTP pairing changed while preparing the mount');
+            const pinDirectory = `${Config.CONFIGDIR}/sftp`;
+            GLib.mkdir_with_parents(pinDirectory, 0o700);
+            const pins = `${pinDirectory}/${this.device.id}.known_hosts`;
+            GLib.file_set_contents(pins, `[${host}]:${port} ${key}\n`);
+            Gio.File.new_for_path(pins).set_attribute_uint32('unix::mode', 0o600, Gio.FileQueryInfoFlags.NONE, null);
+            GLib.mkdir_with_parents(this._point, 0o700);
+            const remotePath = packet.body.multiPaths ? '/' : packet.body.path || '/';
+            if (!remotePath.startsWith('/')) throw new Error('Invalid SFTP root path');
+            const args = ['sshfs', `${user}@${server}:${remotePath}`, this._point, '-p', String(port), '-s', '-f', '-F', '/dev/null',
+                '-o', `IdentityFile=${Config.CONFIGDIR}/private.pem`, '-o', 'IdentitiesOnly=yes',
+                '-o', 'IdentityAgent=none', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
+                '-o', `UserKnownHostsFile=${pins}`, '-o', 'GlobalKnownHostsFile=/dev/null',
+                '-o', 'PasswordAuthentication=no', '-o', 'ConnectTimeout=5',
+                '-o', 'ServerAliveInterval=15', '-o', 'ServerAliveCountMax=3'];
+            const process = Gio.Subprocess.new(args, Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_PIPE);
+            this._process = process;
+            let finished = false;
+            process.communicate_utf8_async(null, null).then(([, error]) => {
+                finished = true;
+                if (this._process === process) { this._process = null; this._mounted = false; }
+                if (!process.get_successful()) this._error = error.trim().slice(0, 2048) || 'The SFTP mount failed';
+            }).catch(error => { finished = true; this._error = error.message; });
+            for (let attempts = 0; attempts < 200 && !isMounted(this._point); attempts++) {
+                if (finished) throw new Error(this._error || 'SSHFS exited before the mount was ready');
+                await new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => { resolve(); return GLib.SOURCE_REMOVE; }));
             }
-        }
-    }
-
-    /*
-     * Mount menu helpers
-     */
-    _getUnmountSection() {
-        if (this._unmountSection === undefined) {
-            this._unmountSection = new Gio.Menu();
-
-            const unmountItem = new Gio.MenuItem();
-            unmountItem.set_label(Metadata.actions.unmount.label);
-            unmountItem.set_icon(new Gio.ThemedIcon({
-                name: Metadata.actions.unmount.icon_name,
-            }));
-            unmountItem.set_detailed_action('device.unmount');
-            this._unmountSection.append_item(unmountItem);
-        }
-
-        return this._unmountSection;
-    }
-
-    _getFilesMenuItem() {
-        if (this._filesMenuItem === undefined) {
-            // Files menu icon
-            const emblem = new Gio.Emblem({
-                icon: new Gio.ThemedIcon({name: 'emblem-default'}),
-            });
-
-            const mountedIcon = new Gio.EmblemedIcon({
-                gicon: new Gio.ThemedIcon({name: 'folder-remote-symbolic'}),
-            });
-            mountedIcon.add_emblem(emblem);
-
-            // Files menu item
-            this._filesMenuItem = new Gio.MenuItem();
-            this._filesMenuItem.set_detailed_action('device.mount');
-            this._filesMenuItem.set_icon(mountedIcon);
-            this._filesMenuItem.set_label(_('Files'));
-        }
-
-        return this._filesMenuItem;
-    }
-
-    async _addSubmenu(mount) {
-        try {
-            const directories = await this._listDirectories(mount);
-
-            // Submenu sections
-            const dirSection = new Gio.Menu();
-            const unmountSection = this._getUnmountSection();
-
-            for (const [name, uri] of Object.entries(directories))
-                dirSection.append(name, `device.openPath::${uri}`);
-
-            // Files submenu
-            const filesSubmenu = new Gio.Menu();
-            filesSubmenu.append_section(null, dirSection);
-            filesSubmenu.append_section(null, unmountSection);
-
-            // Files menu item
-            const filesMenuItem = this._getFilesMenuItem();
-            filesMenuItem.set_submenu(filesSubmenu);
-
-            // Replace the existing menu item
-            const index = this.device.removeMenuAction('device.mount');
-            this.device.addMenuItem(filesMenuItem, index);
-        } catch (e) {
-            if (!e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
-                debug(e, this.device.name);
-
-            // Reset to allow retrying
-            this._gmount = null;
-        }
-    }
-
-    _removeSubmenu() {
-        try {
-            const index = this.device.removeMenuAction('device.mount');
-            const action = this.device.lookup_action('mount');
-
-            if (action !== null) {
-                this.device.addMenuAction(
-                    action,
-                    index,
-                    Metadata.actions.mount.label,
-                    Metadata.actions.mount.icon_name
-                );
+            if (!isMounted(this._point)) throw new Error('Timed out mounting the paired device');
+            this._mounted = true;
+            const names = packet.body.pathNames || [this.device.name];
+            const paths = packet.body.multiPaths || ['/'];
+            this._directories = {};
+            const menu = new Gio.Menu();
+            for (let i = 0; i < paths.length; i++) {
+                const parts = paths[i].split('/').filter(Boolean);
+                if (parts.includes('..')) continue;
+                const local = this._point + '/' + parts.join('/');
+                const name = names[i] || paths[i];
+                this._directories[name] = local;
+                menu.append(name, `device.openPath::${Gio.File.new_for_path(local).get_uri()}`);
             }
-        } catch (e) {
-            logError(e, this.device.name);
-        }
+            menu.append(_('Unmount'), 'device.unmount');
+            const item = new Gio.MenuItem();item.set_label(_('Files'));item.set_submenu(menu);
+            const index = this.device.removeMenuAction('device.mount');this.device.addMenuItem(item, index);
+        } catch (error) {
+            if (!isMounted(this._point)) { this._process?.force_exit(); this._process = null; }
+            throw error;
+        } finally { this._mounting = false; }
     }
-
-    /**
-     * Create a symbolic link referring to the device by name
-     *
-     * @param {Gio.Mount} mount - A GMount to link to
-     */
-    async _addSymlink(mount) {
-        try {
-            const by_name_dir = Gio.File.new_for_path(
-                `${Config.RUNTIMEDIR}/by-name/`
-            );
-
-            try {
-                by_name_dir.make_directory_with_parents(null);
-            } catch (e) {
-                if (!e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.EXISTS))
-                    throw e;
-            }
-
-            // Replace path separator with a Unicode lookalike:
-            let safe_device_name = this.device.name.replace('/', '∕');
-
-            if (safe_device_name === '.')
-                safe_device_name = '·';
-            else if (safe_device_name === '..')
-                safe_device_name = '··';
-
-            const link_target = mount.get_root().get_path();
-            const link = Gio.File.new_for_path(
-                `${by_name_dir.get_path()}/${safe_device_name}`);
-
-            // Check for and remove any existing stale link
-            try {
-                const link_stat = await link.query_info_async(
-                    'standard::symlink-target',
-                    Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS,
-                    GLib.PRIORITY_DEFAULT,
-                    this.cancellable);
-
-                if (link_stat.get_symlink_target() === link_target)
-                    return;
-
-                await link.delete_async(GLib.PRIORITY_DEFAULT,
-                    this.cancellable);
-            } catch (e) {
-                if (!e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.NOT_FOUND))
-                    throw e;
-            }
-
-            link.make_symbolic_link(link_target, this.cancellable);
-        } catch (e) {
-            debug(e, this.device.name);
-        }
-    }
-
-    /**
-     * Send a request to mount the remote device
-     */
     mount() {
-        if (this.gmount !== null)
-            return;
-
-        this.device.sendPacket({
-            type: 'kdeconnect.sftp.request',
-            body: {
-                startBrowsing: true,
-            },
-        });
+        if (this.mounted || this._mounting) return;
+        this._error = '';
+        this.device.sendPacket({type: 'kdeconnect.sftp.request', body: {startBrowsing: true}});
     }
-
-    /**
-     * Remove the menu items, unmount the filesystem, replace the mount item
-     */
-    async unmount() {
-        try {
-            if (this.gmount === null)
-                return;
-
-            this._removeSubmenu();
-            this._mounting = false;
-
-            await this.gmount.unmount_with_operation(
-                Gio.MountUnmountFlags.FORCE,
-                new Gio.MountOperation(),
-                this.cancellable);
-        } catch (e) {
-            debug(e, this.device.name);
+    unmount() {
+        if (isMounted(this._point)) {
+            const process = Gio.Subprocess.new(['fusermount3', '-u', this._point], Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE);
+            process.wait(null);
+            if (!process.get_successful()) { this._error = 'The device filesystem is still in use'; return; }
         }
+        this._process?.force_exit();this._process = null;this._mounted = false;this._directories = {};
     }
-
-    destroy() {
-        if (this._volumeMonitor) {
-            this._volumeMonitor.disconnect(this._mountAddedId);
-            this._volumeMonitor.disconnect(this._mountRemovedId);
-            this._volumeMonitor = null;
-        }
-
-        super.destroy();
-    }
+    destroy() { this.unmount(); super.destroy(); }
 });
-
 export default SFTPPlugin;

@@ -93,7 +93,7 @@ async function generateSupportLog(time) {
  */
 const ConnectDialog = GObject.registerClass({
     GTypeName: 'GSConnectConnectDialog',
-    Template: 'resource:///org/gnome/Shell/Extensions/GSConnect/ui/connect-dialog.ui',
+    Template: 'resource:///org/domed/Connect/ui/connect-dialog.ui',
     Children: [
         'cancel-button', 'connect-button',
         'lan-grid', 'lan-ip', 'lan-port',
@@ -143,7 +143,7 @@ export const Window = GObject.registerClass({
             null
         ),
     },
-    Template: 'resource:///org/gnome/Shell/Extensions/GSConnect/ui/preferences-window.ui',
+    Template: 'resource:///org/domed/Connect/ui/preferences-window.ui',
     Children: [
         // HeaderBar
         'headerbar', 'stack',
@@ -168,7 +168,7 @@ export const Window = GObject.registerClass({
         // Service Settings
         this.settings = new Gio.Settings({
             settings_schema: Config.GSCHEMA.lookup(
-                'org.gnome.Shell.Extensions.GSConnect',
+                'org.domed.Connect',
                 true
             ),
         });
@@ -325,10 +325,10 @@ export const Window = GObject.registerClass({
     _restoreGeometry() {
         this._windowState = new Gio.Settings({
             settings_schema: Config.GSCHEMA.lookup(
-                'org.gnome.Shell.Extensions.GSConnect.WindowState',
+                'org.domed.Connect.WindowState',
                 true
             ),
-            path: '/org/gnome/shell/extensions/gsconnect/preferences/',
+            path: '/org/domed/connect/preferences/',
         });
 
         // Size
@@ -372,7 +372,7 @@ export const Window = GObject.registerClass({
                 ],
                 comments: _('A complete KDE Connect implementation for GNOME'),
                 logo: GdkPixbuf.Pixbuf.new_from_resource_at_scale(
-                    '/org/gnome/Shell/Extensions/GSConnect/icons/org.gnome.Shell.Extensions.GSConnect.svg',
+                    '/org/domed/Connect/icons/org.domed.Connect.svg',
                     128,
                     128,
                     true

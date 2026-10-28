@@ -17,7 +17,7 @@ import Plugin from '../plugin.js';
 export const Metadata = {
     label: _('MPRIS'),
     description: _('Bidirectional remote media playback control'),
-    id: 'org.gnome.Shell.Extensions.GSConnect.Plugin.MPRIS',
+    id: 'org.domed.Connect.Plugin.MPRIS',
     incomingCapabilities: ['kdeconnect.mpris', 'kdeconnect.mpris.request'],
     outgoingCapabilities: ['kdeconnect.mpris', 'kdeconnect.mpris.request'],
     actions: {},

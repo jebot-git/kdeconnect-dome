@@ -7,15 +7,14 @@ import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 
 import Plugin from '../plugin.js';
-import LegacyMessagingDialog from '../ui/legacyMessaging.js';
-import * as Messaging from '../ui/messaging.js';
+import * as NativeUI from '../native-ui.js';
 import SmsURI from '../utils/uri.js';
 
 
 export const Metadata = {
     label: _('SMS'),
     description: _('Send and read SMS of the paired device and be notified of new SMS'),
-    id: 'org.gnome.Shell.Extensions.GSConnect.Plugin.SMS',
+    id: 'org.domed.Connect.Plugin.SMS',
     incomingCapabilities: [
         'kdeconnect.sms.messages',
     ],
@@ -159,25 +158,7 @@ const SMSPlugin = GObject.registerClass({
     }
 
     get window() {
-        if (this.settings.get_boolean('legacy-sms')) {
-            return new LegacyMessagingDialog({
-                device: this.device,
-                plugin: this,
-            });
-        }
-
-        if (this._window === undefined) {
-            this._window = new Messaging.Window({
-                application: Gio.Application.get_default(),
-                device: this.device,
-                plugin: this,
-            });
-
-            this._window.connect('destroy', () => {
-                this._window = undefined;
-            });
-        }
-
+        if (!this._window) this._window = new NativeUI.SmsWindow(this);
         return this._window;
     }
 
@@ -433,28 +414,8 @@ const SMSPlugin = GObject.registerClass({
      * @param {string} url - The link to be shared
      */
     shareSms(url) {
-        // Legacy Mode
-        if (this.settings.get_boolean('legacy-sms')) {
-            const window = this.window;
-            window.present();
-            window.setMessage(url);
-
-        // If there are active threads, show the chooser dialog
-        } else if (Object.values(this.threads).length > 0) {
-            const window = new Messaging.ConversationChooser({
-                application: Gio.Application.get_default(),
-                device: this.device,
-                message: url,
-                plugin: this,
-            });
-
-            window.present();
-
-        // Otherwise show the window and wait for a contact to be chosen
-        } else {
-            this.window.present();
-            this.window.setMessage(url, true);
-        }
+        this.window.setMessage(url);
+        this.window.present();
     }
 
     /**

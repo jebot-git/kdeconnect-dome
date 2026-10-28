@@ -30,7 +30,7 @@ const Dialog = GObject.registerClass({
             GObject.Object
         ),
     },
-    Template: 'resource:///org/gnome/Shell/Extensions/GSConnect/ui/legacy-messaging-dialog.ui',
+    Template: 'resource:///org/domed/Connect/ui/legacy-messaging-dialog.ui',
     Children: [
         'infobar', 'stack',
         'message-box', 'message-avatar', 'message-label', 'entry',

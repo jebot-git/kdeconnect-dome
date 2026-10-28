@@ -41,7 +41,7 @@ export const ResponseType = {
  */
 export const ShortcutChooserDialog = GObject.registerClass({
     GTypeName: 'GSConnectPreferencesShortcutEditor',
-    Template: 'resource:///org/gnome/Shell/Extensions/GSConnect/ui/preferences-shortcut-editor.ui',
+    Template: 'resource:///org/domed/Connect/ui/preferences-shortcut-editor.ui',
     Children: [
         'cancel-button', 'set-button',
         'stack', 'summary-label',

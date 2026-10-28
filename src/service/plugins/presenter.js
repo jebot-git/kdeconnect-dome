@@ -11,7 +11,7 @@ import Plugin from '../plugin.js';
 export const Metadata = {
     label: _('Presentation'),
     description: _('Use the paired device as a presenter'),
-    id: 'org.gnome.Shell.Extensions.GSConnect.Plugin.Presenter',
+    id: 'org.domed.Connect.Plugin.Presenter',
     incomingCapabilities: ['kdeconnect.presenter'],
     outgoingCapabilities: [],
     actions: {},

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import Gdk from 'gi://Gdk';
+import Gdk from './keysyms.js';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
@@ -16,10 +16,10 @@ import Config from '../../config.js';
 Gtk.Window.prototype.restoreGeometry = function (context = 'default') {
     this._windowState = new Gio.Settings({
         settings_schema: Config.GSCHEMA.lookup(
-            'org.gnome.Shell.Extensions.GSConnect.WindowState',
+            'org.domed.Connect.WindowState',
             true
         ),
-        path: `/org/gnome/shell/extensions/gsconnect/${context}/`,
+        path: `/org/domed/connect/${context}/`,
     });
 
     // Size

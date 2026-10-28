@@ -13,7 +13,7 @@ import Plugin from '../plugin.js';
 export const Metadata = {
     label: _('System Volume'),
     description: _('Enable the paired device to control the system volume'),
-    id: 'org.gnome.Shell.Extensions.GSConnect.Plugin.SystemVolume',
+    id: 'org.domed.Connect.Plugin.SystemVolume',
     incomingCapabilities: ['kdeconnect.systemvolume.request'],
     outgoingCapabilities: ['kdeconnect.systemvolume'],
     actions: {},

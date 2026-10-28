@@ -140,10 +140,10 @@ export function ensurePermissions() {
 export function installService() {
     const settings = new Gio.Settings({
         settings_schema: Config.GSCHEMA.lookup(
-            'org.gnome.Shell.Extensions.GSConnect',
+            'org.domed.Connect',
             null
         ),
-        path: '/org/gnome/shell/extensions/gsconnect/',
+        path: '/org/domed/connect/',
     });
 
     const confDir = GLib.get_user_config_dir();

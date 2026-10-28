@@ -3,5 +3,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 [D-BUS Service]
-Name=org.gnome.Shell.Extensions.GSConnect
+Name=org.domed.Connect
 Exec=@PACKAGE_DATADIR@/service/daemon.js

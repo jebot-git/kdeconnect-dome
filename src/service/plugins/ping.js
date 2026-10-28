@@ -12,7 +12,7 @@ import Plugin from '../plugin.js';
 export const Metadata = {
     label: _('Ping'),
     description: _('Send and receive pings'),
-    id: 'org.gnome.Shell.Extensions.GSConnect.Plugin.Ping',
+    id: 'org.domed.Connect.Plugin.Ping',
     incomingCapabilities: ['kdeconnect.ping'],
     outgoingCapabilities: ['kdeconnect.ping'],
     actions: {

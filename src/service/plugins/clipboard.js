@@ -11,7 +11,7 @@ import Plugin from '../plugin.js';
 export const Metadata = {
     label: _('Clipboard'),
     description: _('Share the clipboard content'),
-    id: 'org.gnome.Shell.Extensions.GSConnect.Plugin.Clipboard',
+    id: 'org.domed.Connect.Plugin.Clipboard',
     incomingCapabilities: [
         'kdeconnect.clipboard',
         'kdeconnect.clipboard.connect',

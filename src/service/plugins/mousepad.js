@@ -2,18 +2,18 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import Gdk from 'gi://Gdk';
+import Gdk from '../keysyms.js';
 import GObject from 'gi://GObject';
 
 import * as Components from '../components/index.js';
-import {InputDialog} from '../ui/mousepad.js';
+import * as NativeUI from '../native-ui.js';
 import Plugin from '../plugin.js';
 
 
 export const Metadata = {
     label: _('Mousepad'),
     description: _('Enables the paired device to act as a remote mouse and keyboard'),
-    id: 'org.gnome.Shell.Extensions.GSConnect.Plugin.Mousepad',
+    id: 'org.domed.Connect.Plugin.Mousepad',
     incomingCapabilities: [
         'kdeconnect.mousepad.echo',
         'kdeconnect.mousepad.request',
@@ -349,14 +349,9 @@ const MousepadPlugin = GObject.registerClass({
      * Open the Keyboard Input dialog
      */
     keyboard() {
-        if (this._dialog === undefined) {
-            this._dialog = new InputDialog({
-                device: this.device,
-                plugin: this,
-            });
-        }
-
-        this._dialog.present();
+        NativeUI.input(this.device.name, _('Send keyboard text')).then(text => {
+            if (text) this.device.sendPacket({type: 'kdeconnect.mousepad.request', body: {key: text}});
+        }).catch(logError);
     }
 
     destroy() {

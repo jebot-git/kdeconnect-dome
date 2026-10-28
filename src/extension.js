@@ -42,10 +42,10 @@ const ServiceToggle = GObject.registerClass({
             toggleMode: true,
         });
 
-        this.set({iconName: 'org.gnome.Shell.Extensions.GSConnect-symbolic'});
+        this.set({iconName: 'org.domed.Connect-symbolic'});
 
         // Set QuickMenuToggle header.
-        this.menu.setHeader('org.gnome.Shell.Extensions.GSConnect-symbolic', 'GSConnect',
+        this.menu.setHeader('org.domed.Connect-symbolic', 'GSConnect',
             _('Sync between your devices'));
 
         this._menus = {};
@@ -55,10 +55,10 @@ const ServiceToggle = GObject.registerClass({
         // GSettings
         this.settings = new Gio.Settings({
             settings_schema: Config.GSCHEMA.lookup(
-                'org.gnome.Shell.Extensions.GSConnect',
+                'org.domed.Connect',
                 null
             ),
-            path: '/org/gnome/shell/extensions/gsconnect/',
+            path: '/org/domed/connect/',
         });
 
         // Bind the toggle to enabled key
@@ -111,7 +111,7 @@ const ServiceToggle = GObject.registerClass({
         // Service Menu -> "Mobile Settings"
         this.menu.addSettingsAction(
             _('Mobile Settings'),
-            'org.gnome.Shell.Extensions.GSConnect.Preferences.desktop');
+            'org.domed.Connect.Preferences.desktop');
 
         // Prime the service
         this._initService();
@@ -193,10 +193,10 @@ const ServiceToggle = GObject.registerClass({
             // Device Settings
             device.settings = new Gio.Settings({
                 settings_schema: Config.GSCHEMA.lookup(
-                    'org.gnome.Shell.Extensions.GSConnect.Device',
+                    'org.domed.Connect.Device',
                     true
                 ),
-                path: `/org/gnome/shell/extensions/gsconnect/device/${device.id}/`,
+                path: `/org/domed/connect/device/${device.id}/`,
             });
 
             // Keyboard Shortcuts
@@ -330,7 +330,7 @@ class ServiceIndicator extends QuickSettings.SystemIndicator {
 
         // Create the icon for the indicator
         this._indicator = this._addIndicator();
-        this._indicator.icon_name = 'org.gnome.Shell.Extensions.GSConnect-symbolic';
+        this._indicator.icon_name = 'org.domed.Connect-symbolic';
         // Hide the indicator by default
         this._indicator.visible = false;
 

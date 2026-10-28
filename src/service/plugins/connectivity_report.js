@@ -13,7 +13,7 @@ import Plugin from '../plugin.js';
 export const Metadata = {
     label: _('Connectivity Report'),
     description: _('Display connectivity status'),
-    id: 'org.gnome.Shell.Extensions.GSConnect.Plugin.ConnectivityReport',
+    id: 'org.domed.Connect.Plugin.ConnectivityReport',
     incomingCapabilities: [
         'kdeconnect.connectivity_report',
     ],

@@ -6,9 +6,9 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 
-const SERVICE_NAME = 'org.gnome.Shell.Extensions.GSConnect';
-const SERVICE_PATH = '/org/gnome/Shell/Extensions/GSConnect';
-const DEVICE_NAME = 'org.gnome.Shell.Extensions.GSConnect.Device';
+const SERVICE_NAME = 'org.domed.Connect';
+const SERVICE_PATH = '/org/domed/Connect';
+const DEVICE_NAME = 'org.domed.Connect.Device';
 
 
 const _PROPERTIES = {

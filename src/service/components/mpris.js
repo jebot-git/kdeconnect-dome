@@ -224,7 +224,7 @@ export const Player = GObject.registerClass({
 
     get DesktopEntry() {
         if (this._DesktopEntry === undefined)
-            return 'org.gnome.Shell.Extensions.GSConnect';
+            return 'org.domed.Connect';
 
         return this._DesktopEntry;
     }

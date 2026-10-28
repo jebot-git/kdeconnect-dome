@@ -104,10 +104,10 @@ const Device = GObject.registerClass({
         // GSettings
         this.settings = new Gio.Settings({
             settings_schema: Config.GSCHEMA.lookup(
-                'org.gnome.Shell.Extensions.GSConnect.Device',
+                'org.domed.Connect.Device',
                 true
             ),
-            path: `/org/gnome/shell/extensions/gsconnect/device/${this.id}/`,
+            path: `/org/domed/connect/device/${this.id}/`,
         });
         this._migratePlugins();
 
@@ -951,7 +951,7 @@ const Device = GObject.registerClass({
             if (this._incomingPairRequest) {
                 if (this.identity?.body.protocolVersion >= 8) {
                     const currentTimestamp = Math.floor(Date.now() / 1000);
-                    const diffTimestamp = Number.abs(this._pairingTimestamp - currentTimestamp);
+                    const diffTimestamp = Math.abs(this._pairingTimestamp - currentTimestamp);
                     if (diffTimestamp > ALLOWED_TIMESTAMP_TIME_DIFFERENCE_SECONDS) {
                         this._setPaired(false);
                         this.showNotification({

@@ -2,15 +2,13 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import Gdk from 'gi://Gdk';
 import GLib from 'gi://GLib';
-import Gtk from 'gi://Gtk';
 import Gio from 'gi://Gio';
 import GObject from 'gi://GObject';
 
 
-const DBUS_NAME = 'org.gnome.Shell.Extensions.GSConnect.Clipboard';
-const DBUS_PATH = '/org/gnome/Shell/Extensions/GSConnect/Clipboard';
+const DBUS_NAME = 'org.domed.Connect.Clipboard';
+const DBUS_PATH = '/org/domed/Connect/Clipboard';
 
 
 /**
@@ -62,8 +60,6 @@ const Clipboard = GObject.registerClass({
         if (typeof content !== 'string')
             return;
 
-        if (this._clipboard instanceof Gtk.Clipboard)
-            this._clipboard.set_text(content, -1);
 
         if (this._clipboard instanceof Gio.DBusProxy) {
             this._clipboard.call('SetText', new GLib.Variant('(s)', [content]),
@@ -123,21 +119,13 @@ const Clipboard = GObject.registerClass({
             this._clipboardChangedId = 0;
         }
 
-        const display = Gdk.Display.get_default();
-        this._clipboard = Gtk.Clipboard.get_default(display);
+        this._clipboard = null;
 
-        this._ownerChangeId = this._clipboard.connect('owner-change',
-            this._onOwnerChange.bind(this));
-
-        this._onOwnerChange();
     }
 
     async _onOwnerChange() {
         try {
-            if (this._clipboard instanceof Gtk.Clipboard)
-                await this._gtkUpdateText();
-
-            else if (this._clipboard instanceof Gio.DBusProxy)
+            if (this._clipboard instanceof Gio.DBusProxy)
                 await this._proxyUpdateText();
         } catch (e) {
             if (!e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
@@ -179,25 +167,7 @@ const Clipboard = GObject.registerClass({
     /*
      * GtkClipboard
      */
-    async _gtkUpdateText() {
-        const mimetypes = await new Promise((resolve, reject) => {
-            this._clipboard.request_targets((clipboard, atoms) => resolve(atoms));
-        });
 
-        // Special case for a cleared clipboard
-        if (mimetypes.length === 0)
-            return this._applyUpdate('');
-
-        // Special case to ignore copied files
-        if (mimetypes.includes('text/uri-list'))
-            return;
-
-        const text = await new Promise((resolve, reject) => {
-            this._clipboard.request_text((clipboard, text) => resolve(text));
-        });
-
-        this._applyUpdate(text);
-    }
 
     destroy() {
         if (this._cancellable.is_cancelled())

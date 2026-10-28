@@ -5,19 +5,18 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
-import Gtk from 'gi://Gtk';
+import * as NativeUI from '../native-ui.js';
 
 import * as Components from '../components/index.js';
 import * as Core from '../core.js';
 import Config from '../../config.js';
 import Plugin from '../plugin.js';
-import ReplyDialog from '../ui/notification.js';
 
 
 export const Metadata = {
     label: _('Notifications'),
     description: _('Share notifications with the paired device'),
-    id: 'org.gnome.Shell.Extensions.GSConnect.Plugin.Notification',
+    id: 'org.domed.Connect.Plugin.Notification',
     incomingCapabilities: [
         'kdeconnect.notification',
         'kdeconnect.notification.request',
@@ -380,25 +379,19 @@ const NotificationPlugin = GObject.registerClass({
      * @param {Gio.ThemedIcon} icon - The GIcon to upload
      */
     _uploadThemedIcon(packet, icon) {
-        const theme = Gtk.IconTheme.get_default();
-        let file = null;
-
+        const roots = [GLib.get_user_data_dir(), ...GLib.get_system_data_dirs()];
         for (const name of icon.names) {
-            // NOTE: kdeconnect-android doesn't support SVGs
-            const size = Math.max.apply(null, theme.get_icon_sizes(name));
-            const info = theme.lookup_icon(name, size, Gtk.IconLookupFlags.NO_SVG);
-
-            // Send the first icon we find from the options
-            if (info) {
-                file = Gio.File.new_for_path(info.get_filename());
-                break;
+            for (const root of roots) {
+                for (const folder of ['pixmaps', 'icons/hicolor/48x48/apps', 'icons/hicolor/64x64/apps']) {
+                    const path = GLib.build_filenamev([root, folder, `${name}.png`]);
+                    if (GLib.file_test(path, GLib.FileTest.IS_REGULAR)) {
+                        this._uploadFileIcon(packet, Gio.File.new_for_path(path));
+                        return;
+                    }
+                }
             }
         }
-
-        if (file)
-            this._uploadFileIcon(packet, file);
-        else
-            this.device.sendPacket(packet);
+        this.device.sendPacket(packet);
     }
 
     /**
@@ -677,13 +670,9 @@ const NotificationPlugin = GObject.registerClass({
 
         // If the message has no content, open a dialog for the user to add one
         if (!message) {
-            const dialog = new ReplyDialog({
-                device: this.device,
-                uuid: uuid,
-                notification: notification,
-                plugin: this,
-            });
-            dialog.present();
+            NativeUI.input(this.device.name, notification?.body || _('Reply')).then(reply => {
+                if (reply) this.replyNotification(uuid, reply, notification);
+            }).catch(logError);
 
         // Otherwise just send the reply
         } else {

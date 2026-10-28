@@ -1,68 +1,30 @@
-<!--
-SPDX-FileCopyrightText: GSConnect Developers https://github.com/GSConnect
+# Dome Connect
 
-SPDX-License-Identifier: GPL-2.0-or-later
--->
+A native KDE Connect protocol service for de-xr, forked from GSConnect 74.
+The service runs with GIO/GJS and TLS; interactive dialogs use FLTK. The default
+build and installed runtime require neither Qt nor GTK.
 
-# GSConnect
+The existing DomeD device controls retain a KDE-compatible D-Bus API. LAN
+pairing, battery reporting and certificate-pinned SSHFS have been verified
+with an existing paired phone without changing its pairing identity.
 
-[<img src="https://raw.githubusercontent.com/andyholmes/gnome-shell-extensions-badge/master/get-it-on-ego.svg?sanitize=true" alt="Get it on GNOME Extensions" height="100" align="middle">][ego] [<img alt="Available in the Chrome Web Store" src="https://raw.githubusercontent.com/GSConnect/gnome-shell-extension-gsconnect/main/data/images/chrome-badge.png" align="middle" hspace="12"/>][chrome] [<img src="https://raw.githubusercontent.com/GSConnect/gnome-shell-extension-gsconnect/main/data/images/firefox-badge.png" alt="Get the Add-On" align="middle">][firefox]
+Build as the regular user in the de-xr workspace:
 
-## Overview
+```sh
+meson setup build --prefix=/usr/local
+meson compile -C build
+meson test -C build --print-errorlogs
+DESTDIR="$PWD/stage" meson install -C build --no-rebuild
+```
 
-[GSConnect][ego] is a complete implementation of [KDE Connect][kdeconnect]
-especially for GNOME Shell with Nautilus, [Chrome][chrome] and
-[Firefox][firefox] integration. The KDE Connect team has applications for Linux,
-BSD, Android, Sailfish, iOS, macOS and Windows.
+Use `python3 tools/package-domed.py BUILD_DIR` to build an installable RPM.
+Only installation into system paths needs sudo. Do not compile as root.
 
-With GSConnect you can securely connect to mobile devices and other desktops to:
+See [README.DOMED](README.DOMED) for dependencies, migration, supported paths,
+security behavior, test requirements and current limitations. This replacement
+does not claim complete UI/API parity with the original KDE daemon. Bluetooth
+transport is not implemented.
 
-* Share files, links and text
-* Send and receive messages
-* Sync clipboard content
-* Sync contacts
-* Sync notifications
-* Control media players
-* Control system volume
-* Execute predefined commands
-* And more…
-
-Please see the **[Wiki][wiki]** for more information about
-**[Features][features]** and **[Help][help]**.
-
-## Project Status
-
-GSConnect is now under the GitHub organisation [GSConnect][gsconnect-org].
-
-Please note, this project has migrated from a developer-driven model to a
-community-driven model. This means that GSConnect does not have dedicated
-developers working on new features or bug fixes. Instead, the project relies on
-contributions from its users and distributions that choose to package it.
-
-If you would like to take a more active role in the development and maintenance
-of GSConnect, you can start by [triaging new issues][issues],
-[fixing confirmed issues][help-wanted] and [reviewing contributions][needs-review].
-If you need additional permissions, you may request them from one of the
-[current maintainers][people].
-
-## Nightly Builds
-
-For early updaters of GNOME Shell and those that wish to test the upcoming version
-of GSConnect, there are automated builds available for [download][nightly-build].
-See [Installing from Nightly Build][nightly-install] for installation instructions.
-
-[ego]: https://extensions.gnome.org/extension/1319/gsconnect/
-[chrome]: https://chrome.google.com/webstore/detail/gsconnect/jfnifeihccihocjbfcfhicmmgpjicaec
-[firefox]: https://addons.mozilla.org/firefox/addon/gsconnect/
-[kdeconnect]: https://userbase.kde.org/KDEConnect
-[wiki]: https://github.com/GSConnect/gnome-shell-extension-gsconnect/wiki/
-[features]: https://github.com/GSConnect/gnome-shell-extension-gsconnect/wiki/Features
-[help]: https://github.com/GSConnect/gnome-shell-extension-gsconnect/wiki/Help
-
-[gsconnect-org]: https://github.com/GSConnect
-[issues]: https://github.com/GSConnect/gnome-shell-extension-gsconnect/issues
-[help-wanted]: https://github.com/GSConnect/gnome-shell-extension-gsconnect/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22
-[needs-review]: https://github.com/GSConnect/gnome-shell-extension-gsconnect/pulls?q=is%3Apr+is%3Aopen+label%3A%22needs+review%22
-[people]: https://github.com/orgs/GSConnect/people
-[nightly-build]: https://nightly.link/GSConnect/gnome-shell-extension-gsconnect/workflows/main/main/gsconnect@andyholmes.github.io.zip
-[nightly-install]: https://github.com/GSConnect/gnome-shell-extension-gsconnect/wiki/Installation#install-from-nightly-build
+Original GNOME extension sources remain for reference and attribution; they
+are not built or installed. The original documentation is preserved in
+[README.upstream.md](README.upstream.md). Source licenses remain in LICENSES.

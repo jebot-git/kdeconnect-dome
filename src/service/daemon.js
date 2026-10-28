@@ -45,9 +45,9 @@ const Service = GObject.registerClass({
 
     _init() {
         super._init({
-            application_id: 'org.gnome.Shell.Extensions.GSConnect',
+            application_id: 'org.domed.Connect',
             flags: Gio.ApplicationFlags.HANDLES_OPEN,
-            resource_base_path: '/org/gnome/Shell/Extensions/GSConnect',
+            resource_base_path: '/org/domed/Connect',
         });
 
         GLib.set_prgname('gsconnect');
@@ -83,7 +83,7 @@ const Service = GObject.registerClass({
         // For each device, remove it entirely if it violates the device ID
         // constraints, otherwise mark it unpaired to preserve the settings.
         const deviceList = this.settings.get_strv('devices').filter(id => {
-            const settingsPath = `/org/gnome/shell/extensions/gsconnect/device/${id}/`;
+            const settingsPath = `/org/domed/connect/device/${id}/`;
             if (!Device.validateId(id)) {
                 GLib.spawn_command_line_async(`dconf reset -f ${settingsPath}`);
                 Gio.File.rm_rf(GLib.build_filenamev([Config.CACHEDIR, id]));
@@ -93,7 +93,7 @@ const Service = GObject.registerClass({
 
             const settings = new Gio.Settings({
                 settings_schema: Config.GSCHEMA.lookup(
-                    'org.gnome.Shell.Extensions.GSConnect.Device', true),
+                    'org.domed.Connect.Device', true),
                 path: settingsPath,
             });
             settings.set_boolean('paired', false);
@@ -611,8 +611,8 @@ const Service = GObject.registerClass({
         id = id.replace(/\W+/g, '_');
 
         Gio.DBus.session.call_sync(
-            'org.gnome.Shell.Extensions.GSConnect',
-            `/org/gnome/Shell/Extensions/GSConnect/Device/${id}`,
+            'org.domed.Connect',
+            `/org/domed/Connect/Device/${id}`,
             'org.gtk.Actions',
             'Activate',
             GLib.Variant.new('(sava{sv})', [name, parameters, {}]),
@@ -625,8 +625,8 @@ const Service = GObject.registerClass({
 
     _cliListDevices(full = true) {
         const result = Gio.DBus.session.call_sync(
-            'org.gnome.Shell.Extensions.GSConnect',
-            '/org/gnome/Shell/Extensions/GSConnect',
+            'org.domed.Connect',
+            '/org/domed/Connect',
             'org.freedesktop.DBus.ObjectManager',
             'GetManagedObjects',
             null,
@@ -641,7 +641,7 @@ const Service = GObject.registerClass({
 
         for (let object of Object.values(variant)) {
             object = object.recursiveUnpack();
-            device = object['org.gnome.Shell.Extensions.GSConnect.Device'];
+            device = object['org.domed.Connect.Device'];
 
             if (full)
                 print(`${device.Id}\t${device.Name}\t${device.Connected}\t${device.Paired}`);
@@ -686,7 +686,7 @@ const Service = GObject.registerClass({
             icon = Gio.Icon.new_for_string(icon);
         } else {
             icon = new Gio.ThemedIcon({
-                name: 'org.gnome.Shell.Extensions.GSConnect',
+                name: 'org.domed.Connect',
             });
         }
 
@@ -728,8 +728,8 @@ const Service = GObject.registerClass({
 
     _findDeviceID(name) {
         const result = Gio.DBus.session.call_sync(
-            'org.gnome.Shell.Extensions.GSConnect',
-            '/org/gnome/Shell/Extensions/GSConnect',
+            'org.domed.Connect',
+            '/org/domed/Connect',
             'org.freedesktop.DBus.ObjectManager',
             'GetManagedObjects',
             null,
@@ -744,7 +744,7 @@ const Service = GObject.registerClass({
 
         for (let object of Object.values(variant)) {
             object = object.recursiveUnpack();
-            device = object['org.gnome.Shell.Extensions.GSConnect.Device'];
+            device = object['org.domed.Connect.Device'];
 
             if (name === device.Name)
                 return device.Id;

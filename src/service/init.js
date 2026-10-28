@@ -54,9 +54,9 @@ Gio._promisify(Gio.DtlsConnection.prototype, 'handshake_async');
 
 
 // User Directories
-Config.CACHEDIR = GLib.build_filenamev([GLib.get_user_cache_dir(), 'gsconnect']);
-Config.CONFIGDIR = GLib.build_filenamev([GLib.get_user_config_dir(), 'gsconnect']);
-Config.RUNTIMEDIR = GLib.build_filenamev([GLib.get_user_runtime_dir(), 'gsconnect']);
+Config.CACHEDIR = GLib.build_filenamev([GLib.get_user_cache_dir(), 'kdeconnect-dome']);
+Config.CONFIGDIR = GLib.build_filenamev([GLib.get_user_config_dir(), 'kdeconnect-dome']);
+Config.RUNTIMEDIR = GLib.build_filenamev([GLib.get_user_runtime_dir(), 'kdeconnect-dome']);
 
 // Bootstrap
 const serviceFolder = GLib.path_get_dirname(GLib.filename_from_uri(import.meta.url)[0]);
@@ -111,7 +111,7 @@ Config.DBUS = (() => {
 
 // Init User Directories
 for (const path of [Config.CACHEDIR, Config.CONFIGDIR, Config.RUNTIMEDIR])
-    GLib.mkdir_with_parents(path, 0o755);
+    GLib.mkdir_with_parents(path, 0o700);
 
 
 globalThis.HAVE_GNOME = GLib.getenv('GSCONNECT_MODE')?.toLowerCase() !== 'cli' && (GLib.getenv('GNOME_SETUP_DISPLAY') !== null || GLib.getenv('XDG_CURRENT_DESKTOP')?.toUpperCase()?.includes('GNOME') || GLib.getenv('XDG_SESSION_DESKTOP')?.toLowerCase() === 'gnome');
@@ -147,7 +147,7 @@ const _debugFunc = function (error, prefix = null) {
 
     GLib.log_structured('GSConnect', GLib.LogLevelFlags.LEVEL_MESSAGE, {
         'MESSAGE': `[${script}:${func}:${line}]: ${message}`,
-        'SYSLOG_IDENTIFIER': 'org.gnome.Shell.Extensions.GSConnect',
+        'SYSLOG_IDENTIFIER': 'org.domed.Connect',
         'CODE_FILE': file,
         'CODE_FUNC': func,
         'CODE_LINE': line,
@@ -159,7 +159,7 @@ globalThis._debugFunc = _debugFunc;
 const settings = new Gio.Settings({
     settings_schema: Config.GSCHEMA.lookup(Config.APP_ID, true),
 });
-if (settings.get_boolean('debug')) {
+if (settings.get_boolean('debug') || GLib.getenv('DOME_CONNECT_DEBUG') === '1') {
     globalThis.debug = globalThis._debugFunc;
 } else {
     // Swap the function out for a no-op anonymous function for speed
@@ -347,9 +347,6 @@ GLib.Variant.prototype.full_unpack = _full_unpack;
  * Creates a GTlsCertificate from the PEM-encoded data in %cert_path and
  * %key_path. If either are missing a new pair will be generated.
  *
- * Additionally, the private key will be added using ssh-add to allow sftp
- * connections using Gio.
- *
  * See: https://github.com/KDE/kdeconnect-kde/blob/master/core/kdeconnectconfig.cpp#L119
  *
  * @param {string} certPath - Absolute path to a x509 certificate in PEM format
@@ -379,8 +376,7 @@ Gio.TlsCertificate.new_for_paths = function (certPath, keyPath, commonName = nul
         const proc = new Gio.Subprocess({
             argv: [
                 Config.OPENSSL_PATH, 'req',
-                '-newkey', 'ec',
-                '-pkeyopt', 'ec_paramgen_curve:prime256v1',
+                '-newkey', 'rsa:3072',
                 '-keyout', keyPath,
                 '-new', '-x509', '-nodes',
                 '-days', '3650',

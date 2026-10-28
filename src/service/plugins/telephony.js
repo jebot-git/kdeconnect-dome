@@ -15,7 +15,7 @@ import Plugin from '../plugin.js';
 export const Metadata = {
     label: _('Telephony'),
     description: _('Be notified about calls and adjust system volume during ringing/ongoing calls'),
-    id: 'org.gnome.Shell.Extensions.GSConnect.Plugin.Telephony',
+    id: 'org.domed.Connect.Plugin.Telephony',
     incomingCapabilities: [
         'kdeconnect.telephony',
     ],

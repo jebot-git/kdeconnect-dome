@@ -381,7 +381,7 @@ const Listener = GObject.registerClass({
 
     AddNotification(application, id, notification) {
         // Ignore our own notifications or we'll cause a notification loop
-        if (application === 'org.gnome.Shell.Extensions.GSConnect')
+        if (application === 'org.domed.Connect')
             return;
 
         const appInfo = GioUnix.DesktopAppInfo.new(`${application}.desktop`);

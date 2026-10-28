@@ -15,8 +15,8 @@ import * as LanBackend from './backends/lan.js';
 
 import {MissingOpensslError} from '../utils/exceptions.js';
 
-const DEVICE_NAME = 'org.gnome.Shell.Extensions.GSConnect.Device';
-const DEVICE_PATH = '/org/gnome/Shell/Extensions/GSConnect/Device';
+const DEVICE_NAME = 'org.domed.Connect.Device';
+const DEVICE_PATH = '/org/domed/Connect/Device';
 const DEVICE_IFACE = Config.DBUS.lookup_interface(DEVICE_NAME);
 
 
@@ -249,7 +249,7 @@ const Manager = GObject.registerClass({
 
     _onDebugChanged(debug = false) {
         // If debugging is disabled, install a no-op for speed
-        if (debug && globalThis._debugFunc !== undefined)
+        if ((debug || GLib.getenv('DOME_CONNECT_DEBUG') === '1') && globalThis._debugFunc !== undefined)
             globalThis.debug = globalThis._debugFunc;
         else
             globalThis.debug = () => {};
@@ -298,6 +298,7 @@ const Manager = GObject.registerClass({
                 const backend = new module.ChannelService({
                     id: this.id,
                     name: this.name,
+                    port: Number(GLib.getenv('DOME_CONNECT_PORT')) || 1716,
                 });
                 this.backends.set(name, backend);
 
@@ -435,7 +436,7 @@ const Manager = GObject.registerClass({
      */
     _removeDevice(id) {
         // Delete all GSettings
-        const settings_path = `/org/gnome/shell/extensions/gsconnect/device/${id}/`;
+        const settings_path = `/org/domed/connect/device/${id}/`;
         GLib.spawn_command_line_async(`dconf reset -f ${settings_path}`);
 
         // Delete the cache
